@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">נבון</string>
+    <string name="accessibility_description">מאפשר לנבון לקרוא את המסך וללחוץ, להקליד ולגלול עבורך כדי לבצע פקודות.</string>
+
+    <string name="hint_command">מה לעשות? לדוגמה: היכנס לוואטסאפ ושלח לאמא שאני בדרך</string>
+    <string name="btn_run">בצע</string>
+    <string name="btn_mic">🎤 דבר</string>
+    <string name="btn_stop">עצור</string>
+    <string name="btn_settings">הגדרות</string>
+
+    <string name="settings_title">הגדרות נבון</string>
+    <string name="hint_api_key">מפתח API של Claude (sk-ant-…)</string>
+    <string name="hint_model">מודל (למשל claude-sonnet-5-5)</string>
+    <string name="save">שמור</string>
+
+    <string name="need_accessibility">נבון צריך הרשאת נגישות כדי לשלוט במסך. פתח הגדרות נגישות?</string>
+    <string name="need_api_key">חסר מפתח API. היכנס להגדרות והדבק מפתח.</string>
+    <string name="open_settings">פתח הגדרות</string>
+    <string name="notif_channel">פעולות נבון</string>
+    <string name="notif_working">נבון עובד על המשימה…</string>
+</resources>
