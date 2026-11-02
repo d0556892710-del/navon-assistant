@@ -12,8 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * The long-running "brain" service. It drives the agent loop:
@@ -72,7 +70,7 @@ class AgentService : Service() {
     private fun runLoop(command: String) {
         val settings = SettingsStore(this)
         if (settings.apiKey.isBlank()) {
-            AgentState.log("❌ חסר מפתח API. היכנס להגדרות והדבק מפתח מ-console.anthropic.com.")
+            AgentState.log("❌ חסר מפתח API. היכנס להגדרות והדבק מפתח חינמי מ-aistudio.google.com.")
             return
         }
         if (!NavonAccessibilityService.isConnected) {
@@ -80,15 +78,14 @@ class AgentService : Service() {
             return
         }
 
-        val client = ClaudeClient(settings.apiKey, settings.model)
+        val client = GeminiClient(settings.apiKey, settings.model)
         val executor = ActionExecutor(this)
-        val messages = JSONArray()
 
         AgentState.log("👤 $command")
 
         // First user turn: the command + the current screen.
         val firstScreen = NavonAccessibilityService.instance?.dumpScreen() ?: ""
-        messages.put(userText("$command\n\n--- מצב המסך ---\n$firstScreen"))
+        client.addUserText("$command\n\n--- מצב המסך ---\n$firstScreen")
 
         var step = 0
         while (step < MAX_STEPS) {
@@ -98,59 +95,44 @@ class AgentService : Service() {
             }
             step++
 
-            val result = client.send(messages)
-            // Record Claude's turn verbatim so the conversation stays valid.
-            messages.put(JSONObject().put("role", "assistant").put("content", result.assistantContent))
-
+            val result = client.send()
             if (result.text.isNotBlank()) AgentState.log("🤖 ${result.text.trim()}")
 
             if (result.toolUses.isEmpty()) {
-                // Claude ended without acting.
+                AgentState.log("✅ סיימתי.")
                 return
             }
 
-            val toolResults = JSONArray()
+            val functionResults = ArrayList<Pair<String, String>>()
             var terminate = false
             for (tu in result.toolUses) {
                 when (tu.name) {
                     "finish" -> {
-                        val msg = tu.input.optString("message", "המשימה הושלמה.")
+                        val msg = tu.args.optString("message", "המשימה הושלמה.")
                         AgentState.log("✅ $msg")
-                        toolResults.put(toolResult(tu.id, "סיום אושר."))
+                        functionResults.add(tu.name to "סיום אושר.")
                         terminate = true
                     }
                     "ask_user" -> {
-                        val q = tu.input.optString("question")
+                        val q = tu.args.optString("question")
                         AgentState.log("❓ נבון שואל: $q\n(ענה בשדה הפקודה ולחץ בצע)")
-                        toolResults.put(toolResult(tu.id, "השאלה הועברה למשתמש."))
+                        functionResults.add(tu.name to "השאלה הועברה למשתמש.")
                         terminate = true
                     }
                     else -> {
-                        AgentState.log("⚙️ ${tu.name} ${tu.input}")
-                        val actionResult = executor.execute(tu.name, tu.input)
+                        AgentState.log("⚙️ ${tu.name} ${tu.args}")
+                        val actionResult = executor.execute(tu.name, tu.args)
                         val newScreen = NavonAccessibilityService.instance?.dumpScreen() ?: ""
-                        toolResults.put(
-                            toolResult(tu.id, "$actionResult\n\n--- מצב המסך ---\n$newScreen")
-                        )
+                        functionResults.add(
+                            tu.name to "$actionResult\n\n--- מצב המסך ---\n$newScreen")
                     }
                 }
             }
-            messages.put(JSONObject().put("role", "user").put("content", toolResults))
+            client.addFunctionResults(functionResults)
             if (terminate) return
         }
         AgentState.log("⚠️ הגעתי למגבלת הצעדים ($MAX_STEPS). המשימה אולי לא הושלמה.")
     }
-
-    // --- JSON helpers -----------------------------------------------------
-
-    private fun userText(text: String): JSONObject =
-        JSONObject().put("role", "user").put("content", text)
-
-    private fun toolResult(id: String, content: String): JSONObject =
-        JSONObject()
-            .put("type", "tool_result")
-            .put("tool_use_id", id)
-            .put("content", content)
 
     // --- Notification -----------------------------------------------------
 

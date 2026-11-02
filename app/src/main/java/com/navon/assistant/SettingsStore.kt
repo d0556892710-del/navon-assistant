@@ -15,8 +15,8 @@ class SettingsStore(context: Context) {
         set(v) = prefs.edit().putString("model", v.trim().ifBlank { DEFAULT_MODEL }).apply()
 
     companion object {
-        // A fast, inexpensive model is a good default for an agent loop that
-        // makes many calls. Change it in Settings to opus for harder tasks.
-        const val DEFAULT_MODEL = "claude-sonnet-5-5"
+        // A fast model on Gemini's free tier, good for an agent loop that makes
+        // many calls. Change it in Settings (e.g. gemini-2.5-flash) if you like.
+        const val DEFAULT_MODEL = "gemini-2.0-flash"
     }
 }
